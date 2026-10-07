@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تولیدات دکتر اسپرت</title>
+    <style>
+        * { box-sizing: border-box; font-family: Tahoma, sans-serif; }
+        body { background-color: #f4f6f9; margin: 0; padding: 15px; }
+        header { background: #d32f2f; color: white; text-align: center; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
+        .card { background: white; border-radius: 8px; padding: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); text-align: center; }
+        .card img { width: 100%; height: 120px; object-fit: cover; border-radius: 6px; }
+        .price { color: #2e7d32; font-weight: bold; margin: 5px 0; }
+        .old-price { text-decoration: line-through; color: #888; font-size: 0.9em; }
+        button { background: #1976d2; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; width: 100%; }
+        button:hover { background: #1565c0; }
+        .cart-section { background: white; padding: 15px; border-radius: 8px; margin-top: 25px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .cart-item { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 8px 0; }
+        .form-group { margin-bottom: 10px; text-align: right; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        .suggest-box { background: #fff8e1; border: 1px dashed #ffa000; padding: 10px; border-radius: 6px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>تولیدات دکتر اسپرت</h1>
+    <p>فروشگاه آنلاین تجهیزات و ملزومات ورزشی</p>
+</header>
+
+<h2>محصولات</h2>
+<div class="grid" id="product-list"></div>
+
+<div class="suggest-box" id="suggestion-box" style="display:none;">
+    <h4>پیشنهاد ویژه دکتر اسپرت:</h4>
+    <p id="suggest-text"></p>
+</div>
+
+<div class="cart-section">
+    <h3>سبد خرید شما</h3>
+    <div id="cart-items">سبد خرید خالی است.</div>
+    <hr>
+    <p>جمع کل: <span id="total-price">0</span> تومان</p>
+    <p>تخفیف: <span id="discount-amount">0</span> تومان</p>
+    <h4>مبلغ قابل پرداخت: <span id="final-price">0</span> تومان</h4>
+
+    <h3>اطلاعات ارسال و پرداخت</h3>
+    <div class="form-group">
+        <label>نام و نام خانوادگی:</label>
+        <input type="text" id="cust-name" placeholder="مثال: علی محمدی">
+    </div>
+    <div class="form-group">
+        <label>شماره تماس:</label>
+        <input type="tel" id="cust-phone" placeholder="09123456789">
+    </div>
+    <div class="form-group">
+        <label>نوع پرداخت:</label>
+        <select id="pay-type" onchange="toggleChequeFields()">
+            <option value="نقدی">نقدی / کارت به کارت</option>
+            <option value="چک">پرداخت با چک</option>
+        </select>
+    </div>
+
+    <div id="cheque-details" style="display: none;">
+        <div class="form-group">
+            <label>شماره صیادی چک:</label>
+            <input type="text" id="cheque-num">
+        </div>
+        <div class="form-group">
+            <label>تاریخ سررسید چک:</label>
+            <input type="text" id="cheque-date" placeholder="1403/05/20">
+        </div>
+    </div>
+
+    <button onclick="submitOrder()" style="background: #2e7d32; font-size: 1.1em; padding: 12px;">ثبت و ارسال سفارش</button>
+</div>
+
+<script>
+    const products = [
+        { id: 1, name: "کفش سالنی دکتر اسپرت", price: 850000, discount: 50000, img: "https://via.placeholder.com/150" },
+        { id: 2, name: "توپ فوتبال حرفه‌ای", price: 600000, discount: 0, img: "https://via.placeholder.com/150" },
+        { id: 3, name: "دستکش دروازه‌بانی", price: 400000, discount: 30000, img: "https://via.placeholder.com/150" }
+    ];
+
+    let cart = [];
+    const managerPhone = "989123456789";
+
+    function renderProducts() {
+        const list = document.getElementById('product-list');
+        list.innerHTML = '';
+        products.forEach(p => {
+            const finalP = p.price - p.discount;
+            list.innerHTML += `
+                <div class="card">
+                    <img src="${p.img}" alt="${p.name}">
+                    <h4>${p.name}</h4>
+                    ${p.discount > 0 ? `<div class="old-price">${p.price.toLocaleString()} تومان</div>` : ''}
+                    <div class="price">${finalP.toLocaleString()} تومان</div>
+                    <button onclick="addToCart(${p.id})">افزودن به سبد</button>
+                </div>
+            `;
+        });
+    }
+
+    function addToCart(id) {
+        const prod = products.find(p => p.id === id);
+        cart.push(prod);
+        updateCart();
+        checkSuggestions();
+    }
+
+    function updateCart() {
+        const cartDiv = document.getElementById('cart-items');
+        if (cart.length === 0) {
+            cartDiv.innerHTML = "سبد خرید خالی است.";
+            document.getElementById('total-price').innerText = '0';
+            document.getElementById('discount-amount').innerText = '0';
+            document.getElementById('final-price').innerText = '0';
+            return;
+        }
+
+        cartDiv.innerHTML = '';
+        let total = 0;
+        let discount = 0;
+
+        cart.forEach((item) => {
+            total += item.price;
+            discount += item.discount;
+            cartDiv.innerHTML += `
+                <div class="cart-item">
+                    <span>${item.name}</span>
+                    <span>${(item.price - item.discount).toLocaleString()} تومان</span>
+                </div>
+            `;
+        });
+
+        document.getElementById('total-price').innerText = total.toLocaleString();
+        document.getElementById('discount-amount').innerText = discount.toLocaleString();
+        document.getElementById('final-price').innerText = (total - discount).toLocaleString();
+    }
+
+    function checkSuggestions() {
+        const box = document.getElementById('suggestion-box');
+        if (cart.length > 0) {
+            box.style.display = 'block';
+            document.getElementById('suggest-text').innerText = "با خرید این محصولات، بند کفش مخصوص و جوراب ورزشی دکتر اسپرت شامل ۱۵٪ تخفیف ویژه می‌شود!";
+        } else {
+            box.style.display = 'none';
+        }
+    }
+
+    function toggleChequeFields() {
+        const type = document.getElementById('pay-type').value;
+        document.getElementById('cheque-details').style.display = type === 'چک' ? 'block' : 'none';
+    }
+
+    function submitOrder() {
+        const name = document.getElementById('cust-name').value;
+        const phone = document.getElementById('cust-phone').value;
+        const payType = document.getElementById('pay-type').value;
+
+        if (!name || !phone) {
+            alert('لطفا نام و شماره تماس خود را وارد کنید.');
+            return;
+        }
+
+        let orderText = `سفارش جدید از تولیدات دکتر اسپرت:\n`;
+        orderText += `نام مشتری: ${name}\nشماره: ${phone}\n`;
+        orderText += `نوع پرداخت: ${payType}\n`;
+
+        if (payType === 'چک') {
+            orderText += `شماره صیادی چک: ${document.getElementById('cheque-num').value}\n`;
+            orderText += `تاریخ سررسید: ${document.getElementById('cheque-date').value}\n`;
+        }
+
+        orderText += `\nاقلام سفارش:\n`;
+        cart.forEach(item => {
+            orderText += `- ${item.name}\n`;
+        });
+
+        orderText += `\nمبلغ نهایی: ${document.getElementById('final-price').innerText} تومان`;
+
+        const url = `https://wa.me/${managerPhone}?text=${encodeURIComponent(orderText)}`;
+        window.open(url, '_blank');
+    }
+
+    renderProducts();
+</script>
+</body>
+  </html>
+
